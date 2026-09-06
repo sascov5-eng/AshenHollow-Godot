@@ -6,7 +6,7 @@ on:
       - jaba-ci-0.5
     paths-ignore:
       - jaba-public-key.txt
-      - jaba-payload.txt
+      - jaba-payload-*.txt
 
 permissions:
   contents: write
@@ -46,7 +46,7 @@ jobs:
           git commit -m "ci: publish transient Jaba build key [skip ci]"
           git push origin HEAD:$env:GITHUB_REF_NAME
 
-      - name: Wait for encrypted source payload
+      - name: Wait for encrypted source payload chunks
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -56,21 +56,35 @@ jobs:
             Accept = "application/vnd.github+json"
             "X-GitHub-Api-Version" = "2022-11-28"
           }
-          $uri = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/jaba-payload.txt?ref=$env:GITHUB_REF_NAME"
+          function Get-RepoText([string]$path) {
+            $uri = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path?ref=$env:GITHUB_REF_NAME"
+            $r = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
+            $outer = ($r.content -replace "`n", "")
+            return [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($outer))
+          }
           $found = $false
-          for ($i = 0; $i -lt 180; $i++) {
+          for ($attempt = 0; $attempt -lt 180; $attempt++) {
             try {
-              $r = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
-              $outer = ($r.content -replace "`n", "")
-              $text = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($outer))
-              if ($text.StartsWith("RUN=$env:GITHUB_RUN_ID`nKEY=") -and $text.Contains("`nDATA=")) {
-                [IO.File]::WriteAllText("$env:RUNNER_TEMP\jaba-payload.txt", $text)
-                $found = $true
-                Write-Host "Encrypted payload received for this run."
-                break
+              $manifest = Get-RepoText "jaba-payload-manifest.txt"
+              $lines = $manifest -split "`n"
+              $run = ($lines | Where-Object { $_.StartsWith("RUN=") })[0].Substring(4).Trim()
+              $chunks = [int](($lines | Where-Object { $_.StartsWith("CHUNKS=") })[0].Substring(7).Trim())
+              if ($run -eq "$env:GITHUB_RUN_ID" -and $chunks -gt 0) {
+                $sb = [Text.StringBuilder]::new()
+                for ($i = 0; $i -lt $chunks; $i++) {
+                  $name = "jaba-payload-{0:D2}.txt" -f $i
+                  [void]$sb.Append((Get-RepoText $name))
+                }
+                $text = $sb.ToString()
+                if ($text.StartsWith("RUN=$env:GITHUB_RUN_ID`nKEY=") -and $text.Contains("`nDATA=")) {
+                  [IO.File]::WriteAllText("$env:RUNNER_TEMP\jaba-payload.txt", $text)
+                  $found = $true
+                  Write-Host "Encrypted payload chunks received for this run."
+                  break
+                }
               }
             } catch {
-              Write-Host "Waiting for encrypted payload..."
+              Write-Host "Waiting for encrypted payload chunks..."
             }
             Start-Sleep -Seconds 5
           }
