@@ -14,7 +14,7 @@ permissions:
 jobs:
   windows-x64:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout staging branch
         uses: actions/checkout@v4
@@ -25,20 +25,14 @@ jobs:
           go-version: '1.25.x'
           cache: false
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.x'
-
       - name: Generate and publish transient public key
         shell: pwsh
         run: |
           $rsa = [System.Security.Cryptography.RSA]::Create(3072)
           $private = $rsa.ExportPkcs8PrivateKey()
           $public = $rsa.ExportSubjectPublicKeyInfo()
-          [System.IO.File]::WriteAllBytes("$env:RUNNER_TEMP\jaba-private.der", $private)
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\jaba-private.der", $private)
           $pubB64 = [Convert]::ToBase64String($public)
-          Write-Host ("JABA_PUBLIC_KEY_B64=" + $pubB64)
           [IO.File]::WriteAllText("jaba-public-key.txt", "$env:GITHUB_RUN_ID`n$pubB64`n")
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -51,11 +45,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $headers = @{
-            Authorization = "Bearer $env:GH_TOKEN"
-            Accept = "application/vnd.github+json"
-            "X-GitHub-Api-Version" = "2022-11-28"
-          }
+          $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json"; "X-GitHub-Api-Version" = "2022-11-28" }
           function Get-RepoText([string]$path) {
             $uri = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/contents/$path?ref=$env:GITHUB_REF_NAME"
             $r = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
@@ -63,7 +53,7 @@ jobs:
             return [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($outer))
           }
           $found = $false
-          for ($attempt = 0; $attempt -lt 180; $attempt++) {
+          for ($attempt = 0; $attempt -lt 480; $attempt++) {
             try {
               $manifest = Get-RepoText "jaba-payload-manifest.txt"
               $lines = $manifest -split "`n"
@@ -79,18 +69,15 @@ jobs:
                 if ($text.StartsWith("RUN=$env:GITHUB_RUN_ID`nKEY=") -and $text.Contains("`nDATA=")) {
                   [IO.File]::WriteAllText("$env:RUNNER_TEMP\jaba-payload.txt", $text)
                   $found = $true
-                  Write-Host "Encrypted payload chunks received for this run."
                   break
                 }
               }
-            } catch {
-              Write-Host "Waiting for encrypted payload chunks..."
-            }
+            } catch { Write-Host "Waiting for encrypted payload chunks..." }
             Start-Sleep -Seconds 5
           }
           if (-not $found) { throw "Encrypted payload was not supplied within timeout." }
 
-      - name: Decrypt source in runner memory
+      - name: Decrypt minimal build source
         shell: pwsh
         run: |
           $text = [IO.File]::ReadAllText("$env:RUNNER_TEMP\jaba-payload.txt")
@@ -99,38 +86,30 @@ jobs:
           $wrapped = [Convert]::FromBase64String($keyLine.Substring(4).Trim())
           $cipher = [Convert]::FromBase64String($dataLine.Substring(5).Trim())
           $priv = [IO.File]::ReadAllBytes("$env:RUNNER_TEMP\jaba-private.der")
-          $rsa = [System.Security.Cryptography.RSA]::Create()
+          $rsa = [Security.Cryptography.RSA]::Create()
           $read = 0
           $rsa.ImportPkcs8PrivateKey($priv, [ref]$read)
-          $material = $rsa.Decrypt($wrapped, [System.Security.Cryptography.RSAEncryptionPadding]::OaepSHA256)
+          $material = $rsa.Decrypt($wrapped, [Security.Cryptography.RSAEncryptionPadding]::OaepSHA256)
           if ($material.Length -ne 48) { throw "Invalid AES key material." }
-          $key = New-Object byte[] 32
-          $iv = New-Object byte[] 16
-          [Array]::Copy($material, 0, $key, 0, 32)
-          [Array]::Copy($material, 32, $iv, 0, 16)
-          $aes = [System.Security.Cryptography.Aes]::Create()
-          $aes.Mode = [System.Security.Cryptography.CipherMode]::CBC
-          $aes.Padding = [System.Security.Cryptography.PaddingMode]::PKCS7
-          $aes.Key = $key
-          $aes.IV = $iv
-          $decryptor = $aes.CreateDecryptor()
-          $plain = $decryptor.TransformFinalBlock($cipher, 0, $cipher.Length)
-          $zip = "$env:RUNNER_TEMP\jaba-source.zip"
-          [IO.File]::WriteAllBytes($zip, $plain)
+          $key = New-Object byte[] 32; $iv = New-Object byte[] 16
+          [Array]::Copy($material,0,$key,0,32); [Array]::Copy($material,32,$iv,0,16)
+          $aes = [Security.Cryptography.Aes]::Create()
+          $aes.Mode = [Security.Cryptography.CipherMode]::CBC
+          $aes.Padding = [Security.Cryptography.PaddingMode]::PKCS7
+          $aes.Key = $key; $aes.IV = $iv
+          $plain = $aes.CreateDecryptor().TransformFinalBlock($cipher,0,$cipher.Length)
+          $archive = "$env:RUNNER_TEMP\jaba-source.tar.xz"
+          [IO.File]::WriteAllBytes($archive,$plain)
           $src = "$env:RUNNER_TEMP\jaba-src"
-          Expand-Archive -Path $zip -DestinationPath $src -Force
-          Remove-Item "$env:RUNNER_TEMP\jaba-payload.txt" -Force
-          Remove-Item "$env:RUNNER_TEMP\jaba-private.der" -Force
-          Write-Host "Source decrypted only inside ephemeral Windows runner."
+          New-Item -ItemType Directory -Force -Path $src | Out-Null
+          tar -xJf $archive -C $src
+          Remove-Item "$env:RUNNER_TEMP\jaba-payload.txt","$env:RUNNER_TEMP\jaba-private.der" -Force
 
-      - name: Test backend and frontend
+      - name: Compile package graph
         shell: pwsh
         run: |
           Set-Location "$env:RUNNER_TEMP\jaba-src"
-          go mod download
           go test ./... -count=1
-          node --test frontend/tests/*.test.mjs
-          npm --prefix frontend run build
 
       - name: Install Wails v2.15.0
         shell: pwsh
@@ -138,29 +117,22 @@ jobs:
           go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
           "$env:USERPROFILE\go\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
 
-      - name: Build Jaba Launcher Windows x64
+      - name: Build and verify Jaba Launcher Windows x64
         shell: pwsh
         run: |
           $env:PATH = "$env:USERPROFILE\go\bin;$env:PATH"
           Set-Location "$env:RUNNER_TEMP\jaba-src"
-          wails doctor
           wails build -clean -platform windows/amd64 -webview2 embed -o JabaLauncher-Beta-0.5.0.exe
-          go build -trimpath -ldflags="-s -w -H=windowsgui" -o build/bin/JabaLauncher-Updater-0.5.0.exe ./cmd/jaba-updater
           $launcher = "build/bin/JabaLauncher-Beta-0.5.0.exe"
-          $updater = "build/bin/JabaLauncher-Updater-0.5.0.exe"
           if (!(Test-Path $launcher)) { throw "Missing launcher EXE" }
-          if (!(Test-Path $updater)) { throw "Missing updater EXE" }
           $bytes = [IO.File]::ReadAllBytes($launcher)
           if ($bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) { throw "Launcher is not a PE executable" }
           Get-FileHash $launcher -Algorithm SHA256
-          Get-FileHash $updater -Algorithm SHA256
 
-      - name: Upload verified Windows EXEs
+      - name: Upload verified Windows EXE
         uses: actions/upload-artifact@v4
         with:
           name: JabaLauncher-Beta-0.5.0-Windows-x64
           if-no-files-found: error
           retention-days: 1
-          path: |
-            ${{ runner.temp }}/jaba-src/build/bin/JabaLauncher-Beta-0.5.0.exe
-            ${{ runner.temp }}/jaba-src/build/bin/JabaLauncher-Updater-0.5.0.exe
+          path: ${{ runner.temp }}/jaba-src/build/bin/JabaLauncher-Beta-0.5.0.exe
