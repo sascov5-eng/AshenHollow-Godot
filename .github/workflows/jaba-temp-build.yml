@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - jaba-ci-0.5
+    paths-ignore:
+      - jaba-public-key.txt
+      - jaba-payload.txt
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   windows-x64:
@@ -27,14 +30,21 @@ jobs:
         with:
           node-version: '22.x'
 
-      - name: Generate transient decryption key
+      - name: Generate and publish transient public key
         shell: pwsh
         run: |
           $rsa = [System.Security.Cryptography.RSA]::Create(3072)
           $private = $rsa.ExportPkcs8PrivateKey()
           $public = $rsa.ExportSubjectPublicKeyInfo()
           [System.IO.File]::WriteAllBytes("$env:RUNNER_TEMP\jaba-private.der", $private)
-          Write-Host ("JABA_PUBLIC_KEY_B64=" + [Convert]::ToBase64String($public))
+          $pubB64 = [Convert]::ToBase64String($public)
+          Write-Host ("JABA_PUBLIC_KEY_B64=" + $pubB64)
+          [IO.File]::WriteAllText("jaba-public-key.txt", "$env:GITHUB_RUN_ID`n$pubB64`n")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add jaba-public-key.txt
+          git commit -m "ci: publish transient Jaba build key [skip ci]"
+          git push origin HEAD:$env:GITHUB_REF_NAME
 
       - name: Wait for encrypted source payload
         shell: pwsh
@@ -53,10 +63,10 @@ jobs:
               $r = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
               $outer = ($r.content -replace "`n", "")
               $text = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($outer))
-              if ($text.StartsWith("KEY=") -and $text.Contains("`nDATA=")) {
+              if ($text.StartsWith("RUN=$env:GITHUB_RUN_ID`nKEY=") -and $text.Contains("`nDATA=")) {
                 [IO.File]::WriteAllText("$env:RUNNER_TEMP\jaba-payload.txt", $text)
                 $found = $true
-                Write-Host "Encrypted payload received."
+                Write-Host "Encrypted payload received for this run."
                 break
               }
             } catch {
