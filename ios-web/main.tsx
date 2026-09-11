@@ -4,6 +4,7 @@ import { SAVE_KEY } from "@/game/constants";
 import "../src/styles.css";
 
 function boot() {
+  document.documentElement.classList.add("ios-native");
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     const parsed = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};

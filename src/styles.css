@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "./**/*.{ts,tsx}";
+@source "../ios-web/**/*.{ts,tsx}";
 
 @theme {
   --color-bg: #07080d;
@@ -7,7 +9,7 @@
   --color-fg: #e8e4d8;
   --color-muted: #8a8d96;
   --color-subtle: #5c6070;
-  --color-border: color-mix(in oklab, #e8e4d8 12%, transparent);
+  --color-border: rgba(232, 228, 216, 0.14);
   --color-accent: #c8ccd4;
   --color-accent-fg: #07080d;
   --color-soul: #7ec8c8;
@@ -36,20 +38,19 @@
   html,
   body,
   #app {
+    position: fixed;
+    inset: 0;
+    width: 100%;
     height: 100%;
-    background: var(--color-bg);
-    color: var(--color-fg);
-    font-family: var(--font-sans);
-  }
-
-  html,
-  body {
     margin: 0;
     overflow: hidden;
-    overscroll-behavior: none;
+    background: #07080d;
+    color: #e8e4d8;
+    font-family: var(--font-sans);
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
 
   button:not(:disabled),
@@ -58,17 +59,17 @@
   }
 }
 
-/* Force a 16:9 playfield. In portrait the stage rotates so the game stays landscape. */
 .landscape-shell {
-  position: relative;
-  width: 100dvw;
-  height: 100dvh;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   background: #07080d;
 }
 
 @media (orientation: portrait) {
-  .landscape-shell {
+  html:not(.ios-native) .landscape-shell {
     position: fixed;
     top: 50%;
     left: 50%;
@@ -77,6 +78,118 @@
     transform: translate(-50%, -50%) rotate(90deg);
     transform-origin: center center;
   }
+}
+
+html.ios-native .landscape-shell {
+  transform: none !important;
+  width: 100%;
+  height: 100%;
+}
+
+.ph-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+.ph-menu {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.ph-dock {
+  pointer-events: auto;
+  position: absolute;
+  left: max(16px, env(safe-area-inset-left));
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: rgba(10, 12, 18, 0.92);
+  border: 1px solid rgba(232, 228, 216, 0.16);
+}
+
+.ph-dock h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.ph-dock p {
+  margin: 0 0 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #8a8d96;
+}
+
+.ph-start {
+  pointer-events: auto;
+  flex: 0 0 auto;
+  min-width: 168px;
+  height: 48px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 10px;
+  background: #c8ccd4;
+  color: #07080d;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.ph-ghost {
+  pointer-events: auto;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(232, 228, 216, 0.18);
+  background: transparent;
+  color: #e8e4d8;
+  font-size: 13px;
+}
+
+.ph-card {
+  pointer-events: auto;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, calc(100% - 32px));
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: rgba(12, 16, 24, 0.94);
+  border: 1px solid rgba(232, 228, 216, 0.16);
+}
+
+.ph-card h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+}
+
+.ph-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.ph-actions button {
+  pointer-events: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {

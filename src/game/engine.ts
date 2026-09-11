@@ -119,6 +119,7 @@ export class PaleHallGame {
     this.resize();
     window.addEventListener("resize", this.resize);
     document.addEventListener("visibilitychange", this.onVis);
+    this.canvas.addEventListener("pointerdown", this.onCanvasTap);
     try {
       this.art = await loadArt((n) => {
         this.loadP = n;
@@ -143,12 +144,18 @@ export class PaleHallGame {
     this.audio.stopAmbient();
     window.removeEventListener("resize", this.resize);
     document.removeEventListener("visibilitychange", this.onVis);
+    this.canvas.removeEventListener("pointerdown", this.onCanvasTap);
     if (window.__controlsTest) delete window.__controlsTest;
   }
 
   private onVis = () => {
     if (document.hidden) this.input.keys.clear();
     else this.audio.resume();
+  };
+
+  private onCanvasTap = () => {
+    this.audio.unlock();
+    this.tapStart();
   };
 
   private resize = () => {
@@ -179,6 +186,10 @@ export class PaleHallGame {
   goTitle() {
     this.mode = "title";
     this.emit();
+  }
+
+  tapStart() {
+    if (this.mode === "title" || this.mode === "dead" || this.mode === "win") this.begin();
   }
 
   begin() {
@@ -257,7 +268,7 @@ export class PaleHallGame {
       }
     } else {
       this.acc = 0;
-      if (this.mode === "title" && this.input.actions.jumpPressed) this.begin();
+      if (this.mode === "title" && (this.input.actions.jumpPressed || this.input.actions.attackPressed || this.input.actions.dashPressed)) this.begin();
     }
     if (this.input.actions.pausePressed && (this.mode === "playing" || this.mode === "paused")) {
       this.pauseToggle();
@@ -791,6 +802,25 @@ export class PaleHallGame {
 
     ctx.fillStyle = "rgba(6,8,14,0.18)";
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    if (this.mode === "title" || this.mode === "loading") this.drawTitleChrome();
+  }
+
+  private drawTitleChrome() {
+    const ctx = this.ctx;
+    const t = performance.now() / 1000;
+    ctx.fillStyle = "rgba(6,8,14,0.55)";
+    ctx.fillRect(0, VIEW_H - 168, VIEW_W, 168);
+    ctx.fillStyle = "#8a8d96";
+    ctx.font = "14px ui-monospace, Menlo, monospace";
+    ctx.fillText("CLOSED BETA 0.9", 48, VIEW_H - 112);
+    ctx.fillStyle = "#e8e4d8";
+    ctx.font = "italic 64px Georgia, 'Times New Roman', serif";
+    ctx.fillText("Pale Hall", 42, VIEW_H - 52);
+    ctx.globalAlpha = this.mode === "loading" ? 0.55 : 0.7 + Math.sin(t * 3.2) * 0.3;
+    ctx.fillStyle = "#c8ccd4";
+    ctx.font = "600 22px system-ui, sans-serif";
+    ctx.fillText(this.mode === "loading" ? "Сборка зала…" : "Нажмите по залу, чтобы начать", 48, VIEW_H - 18);
+    ctx.globalAlpha = 1;
   }
 
   private drawParallax(img: HTMLImageElement, x: number, y: number, dark: number) {

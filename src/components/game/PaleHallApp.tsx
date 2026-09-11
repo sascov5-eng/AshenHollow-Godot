@@ -39,27 +39,34 @@ export function PaleHallApp() {
 
   const g = gameRef.current;
   const overlay = ui.mode !== "playing";
+  const start = () => gameRef.current?.tapStart();
 
   return (
     <div className="landscape-shell text-fg">
-      <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" />
+      <canvas
+        ref={canvasRef}
+        className="ph-canvas"
+        onPointerDown={() => {
+          if (ui.mode === "title" || ui.mode === "dead" || ui.mode === "win") start();
+        }}
+      />
       {ui.mode === "playing" || ui.mode === "paused" ? <Hud ui={ui} /> : null}
       <TouchControls game={g} visible={ui.showTouch && ui.mode === "playing"} />
       {overlay ? (
         <Menu
           ui={ui}
-          onPlay={() => g?.begin()}
-          onResume={() => g?.pauseToggle()}
-          onRetry={() => g?.begin()}
+          onPlay={start}
+          onResume={() => gameRef.current?.pauseToggle()}
+          onRetry={start}
           onTitle={() => gameRef.current?.goTitle()}
-          onSettings={(p) => g?.patchSettings(p)}
-          onPause={() => g?.pauseToggle()}
+          onSettings={(p) => gameRef.current?.patchSettings(p)}
+          onPause={() => gameRef.current?.pauseToggle()}
         />
       ) : (
         <button
           type="button"
           className="absolute top-[max(12px,env(safe-area-inset-top))] right-[max(12px,env(safe-area-inset-right))] z-30 rounded-full border border-border bg-surface/80 px-3 py-2 text-xs tracking-wide text-muted"
-          onClick={() => g?.pauseToggle()}
+          onPointerDown={() => gameRef.current?.pauseToggle()}
         >
           Пауза
         </button>
@@ -130,57 +137,48 @@ function Menu({
     if (ui.mode === "title") setPanel("root");
   }, [ui.mode]);
 
-  const card =
-    "w-[min(480px,calc(100%-48px))] max-h-[min(92dvh,640px)] overflow-y-auto rounded-xl border border-border bg-surface/92 p-5 shadow-2xl backdrop-blur-md sm:p-6";
-  const primary =
-    "w-full rounded-md bg-accent px-4 py-3 text-sm font-medium text-accent-fg transition-transform duration-150 hover:opacity-90 active:scale-[0.98]";
-  const ghost =
-    "w-full rounded-md border border-border bg-transparent px-4 py-3 text-sm text-fg hover:bg-surface-2";
-
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center bg-bg/55 p-4 backdrop-blur-[2px]">
+    <div className="ph-menu">
       {ui.mode === "loading" ? (
-        <div className={card}>
-          <p className="font-display text-3xl">Pale Hall</p>
-          <p className="mt-2 text-sm text-muted">Сборка бета-комнаты…</p>
-          <div className="mt-5 h-1 overflow-hidden rounded-full bg-surface-2">
-            <div className="h-full bg-soul" style={{ width: `${Math.round(ui.loading * 100)}%` }} />
+        <div className="ph-dock">
+          <div>
+            <p>closed beta 0.9</p>
+            <h1>Pale Hall</h1>
           </div>
+          <button type="button" className="ph-start" disabled>
+            Сборка…
+          </button>
         </div>
       ) : null}
 
       {ui.mode === "title" && panel === "root" ? (
-        <div className={card}>
-          <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted">closed beta 0.9</p>
-          <h1 className="mt-2 font-display text-4xl leading-none tracking-tight sm:text-5xl">Pale Hall</h1>
-          <p className="mt-3 text-sm leading-relaxed text-muted">
-            Тестовая комната. Один зал, три стража, платформы, рывок и скольжение по стенам.
-          </p>
-          <div className="mt-6 flex flex-col gap-2">
-            <button type="button" className={primary} onClick={onPlay}>
-              Начать испытание
-            </button>
-            <button type="button" className={ghost} onClick={() => setPanel("settings")}>
+        <div className="ph-dock">
+          <div>
+            <p>closed beta 0.9</p>
+            <h1>Pale Hall</h1>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" className="ph-ghost" onPointerDown={() => setPanel("settings")}>
               Настройки
             </button>
-            <button type="button" className={ghost} onClick={() => setPanel("controls")}>
-              Управление
+            <button type="button" className="ph-start" onPointerDown={onPlay}>
+              Начать
             </button>
           </div>
         </div>
       ) : null}
 
       {ui.mode === "paused" && panel === "root" ? (
-        <div className={card}>
-          <h2 className="font-display text-3xl">Пауза</h2>
-          <div className="mt-5 flex flex-col gap-2">
-            <button type="button" className={primary} onClick={onResume}>
+        <div className="ph-card">
+          <h2>Пауза</h2>
+          <div className="ph-actions">
+            <button type="button" className="ph-start" onPointerDown={onResume}>
               Продолжить
             </button>
-            <button type="button" className={ghost} onClick={() => setPanel("settings")}>
+            <button type="button" className="ph-ghost" onPointerDown={() => setPanel("settings")}>
               Настройки
             </button>
-            <button type="button" className={ghost} onClick={onTitle}>
+            <button type="button" className="ph-ghost" onPointerDown={onTitle}>
               В титул
             </button>
           </div>
@@ -188,23 +186,26 @@ function Menu({
       ) : null}
 
       {ui.mode === "dead" ? (
-        <div className={card}>
-          <h2 className="font-display text-3xl">Тьма забрала вас</h2>
+        <div className="ph-card">
+          <h2>Тьма забрала вас</h2>
           <p className="mt-2 text-sm text-muted">Возрождение у скамьи. Зал начинается заново.</p>
-          <button type="button" className={`${primary} mt-5`} onClick={onRetry}>
-            Вернуться к скамье
-          </button>
+          <div className="ph-actions">
+            <button type="button" className="ph-start" onPointerDown={onRetry}>
+              Вернуться к скамье
+            </button>
+          </div>
         </div>
       ) : null}
 
       {ui.mode === "win" ? (
-        <div className={card}>
-          <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-soul">печать снята</p>
-          <h2 className="mt-2 font-display text-3xl">Зал затих</h2>
+        <div className="ph-card">
+          <h2>Зал затих</h2>
           <p className="mt-2 text-sm text-muted">Тестовая комната пройдена. Спасибо за сессию бета-теста.</p>
-          <button type="button" className={`${primary} mt-5`} onClick={onRetry}>
-            Ещё раз
-          </button>
+          <div className="ph-actions">
+            <button type="button" className="ph-start" onPointerDown={onRetry}>
+              Ещё раз
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -217,18 +218,14 @@ function Menu({
       ) : null}
 
       {panel === "controls" ? (
-        <div className={card}>
-          <h2 className="font-display text-3xl">Управление</h2>
+        <div className="ph-card">
+          <h2>Управление</h2>
           <ul className="mt-4 space-y-2 text-sm text-muted">
-            <li>A / D или стик — шаг</li>
-            <li>Прыжок — пробел / W / кнопка. Удержание выше.</li>
-            <li>Рывок — L / Shift. Восемь направлений со стика.</li>
-            <li>Удар — Z / J. Снимает душу с тварей.</li>
-            <li>Лечение — удерживать F / I. 33 души, одна маска.</li>
+            <li>Нажмите по залу или кнопку «Начать».</li>
+            <li>Стик — шаг. Справа — прыжок, удар, рывок, лечение.</li>
             <li>Стены — скольжение и прыжок в сторону.</li>
-            <li>Вниз + прыжок — сойти с платформы.</li>
           </ul>
-          <button type="button" className={`${ghost} mt-5`} onClick={() => setPanel("root")}>
+          <button type="button" className="ph-ghost mt-5" onPointerDown={() => setPanel("root")}>
             Назад
           </button>
         </div>
@@ -248,8 +245,8 @@ function SettingsPanel({
 }) {
   const row = "flex items-center justify-between gap-4 text-sm";
   return (
-    <div className="w-[min(480px,calc(100%-48px))] max-h-[min(92dvh,640px)] overflow-y-auto rounded-xl border border-border bg-surface/92 p-5 backdrop-blur-md">
-      <h2 className="font-display text-3xl">Настройки</h2>
+    <div className="ph-card">
+      <h2>Настройки</h2>
       <div className="mt-5 space-y-4">
         <label className={row}>
           Громкость
@@ -323,11 +320,7 @@ function SettingsPanel({
           </select>
         </label>
       </div>
-      <button
-        type="button"
-        className="mt-6 w-full rounded-md border border-border px-4 py-3 text-sm"
-        onClick={onBack}
-      >
+      <button type="button" className="ph-ghost mt-6 w-full" onPointerDown={onBack}>
         Назад
       </button>
     </div>

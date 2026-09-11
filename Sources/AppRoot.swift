@@ -52,6 +52,9 @@ struct GameWebView: UIViewRepresentable {
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.scrollView.showsVerticalScrollIndicator = false
         webView.scrollView.showsHorizontalScrollIndicator = false
+        webView.scrollView.delaysContentTouches = false
+        webView.scrollView.canCancelContentTouches = false
+        webView.isMultipleTouchEnabled = true
         webView.allowsBackForwardNavigationGestures = false
         if #available(iOS 16.4, *) {
             webView.isInspectable = false
