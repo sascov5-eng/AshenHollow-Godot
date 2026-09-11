@@ -1,44 +1,44 @@
-export const VIEW_W = 1280;
-export const VIEW_H = 720;
+export const VIEW_W = 700;
+export const VIEW_H = 394;
 export const STEP = 1 / 60;
 export const MAX_FRAME = 0.1;
-export const WORLD_W = 3600;
-export const WORLD_H = 1100;
-export const GROUND = 900;
+export const WORLD_W = 2100;
+export const WORLD_H = 700;
+export const GROUND = 540;
 
 export const PLAYER = {
-  w: 20,
-  h: 36,
-  accel: 2600,
-  airAccel: 1700,
-  maxSpeed: 235,
-  friction: 2200,
-  jumpVel: -470,
-  jumpCut: 0.48,
-  coyote: 0.1,
-  buffer: 0.12,
-  gravUp: 1280,
-  gravDown: 2450,
-  gravApex: 720,
-  apex: 55,
-  maxFall: 640,
-  dashSpeed: 560,
-  dashTime: 0.17,
-  dashCooldown: 0.44,
-  wallSlide: 88,
-  wallJumpX: 300,
-  wallJumpY: -410,
-  wallCoyote: 0.1,
-  attackTime: 0.3,
-  attackHit0: 0.07,
-  attackHit1: 0.16,
-  healTime: 0.9,
+  w: 22,
+  h: 38,
+  accel: 3400,
+  airAccel: 2400,
+  maxSpeed: 255,
+  friction: 3000,
+  jumpVel: -640,
+  jumpCut: 0.4,
+  coyote: 0.13,
+  buffer: 0.15,
+  gravUp: 1450,
+  gravDown: 2150,
+  gravApex: 620,
+  apex: 80,
+  maxFall: 760,
+  dashSpeed: 680,
+  dashTime: 0.2,
+  dashCooldown: 0.36,
+  wallSlide: 64,
+  wallJumpX: 290,
+  wallJumpY: -560,
+  wallCoyote: 0.12,
+  attackTime: 0.28,
+  attackHit0: 0.06,
+  attackHit1: 0.15,
+  healTime: 0.85,
   healCost: 33,
   maxHp: 5,
   maxSoul: 99,
   soulHit: 11,
   iFrames: 0.95,
-  knock: 220,
+  knock: 240,
 };
 
-export const SAVE_KEY = "pale-hall-beta-v1";
+export const SAVE_KEY = "pale-hall-beta-v2";

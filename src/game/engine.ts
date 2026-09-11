@@ -1,5 +1,5 @@
 import { GROUND, MAX_FRAME, PLAYER, STEP, VIEW_H, VIEW_W, WORLD_H, WORLD_W } from "./constants";
-import { drawSheet, loadArt, type Art } from "./assets";
+import { animFrame, drawSheet, loadArt, type Art } from "./assets";
 import { GameAudio } from "./audio";
 import { Input } from "./input";
 import { hitSpike, moveResolve } from "./physics";
@@ -327,7 +327,7 @@ export class PaleHallGame {
       p.healing = false;
       p.healT = 0;
       moveResolve(p, dt, this.solids, false);
-      this.spawnDust(p.x + p.w / 2, p.y + p.h * 0.6, 1, "#7ec8c8");
+      this.spawnDust(p.x + p.w / 2, p.y + p.h * 0.6, 2, "#8fd4d4");
       if (p.dashT <= 0) {
         p.vx *= 0.45;
         p.vy *= 0.3;
@@ -485,20 +485,24 @@ export class PaleHallGame {
   }
 
   private pickAnim(p: Player, a: Actions, wallHold: boolean) {
-    if (p.hurtT > 0.5) p.anim = "hurt";
-    else if (p.healing || p.sitting) p.anim = "heal";
-    else if (p.atkT > 0) p.anim = "attack";
-    else if (p.dashT > 0) p.anim = "dash";
-    else if (wallHold) p.anim = "wall";
-    else if (!p.grounded) p.anim = "jump";
-    else if (Math.abs(p.vx) > 28 || Math.abs(a.moveX) > 0.2) p.anim = "run";
-    else p.anim = "idle";
+    let next: Player["anim"] = "idle";
+    if (p.hurtT > 0.5) next = "hurt";
+    else if (p.healing || p.sitting) next = "heal";
+    else if (p.atkT > 0) next = "attack";
+    else if (p.dashT > 0) next = "dash";
+    else if (wallHold) next = "wall";
+    else if (!p.grounded) next = "jump";
+    else if (Math.abs(p.vx) > 22 || Math.abs(a.moveX) > 0.18) next = "run";
+    if (next !== p.anim) {
+      p.anim = next;
+      p.animT = 0;
+    }
   }
 
   private footEnv(p: Player) {
-    if (p.grounded && p.anim === "run" && this.stepTick % 14 === 0) this.audio.play("step");
-    if (p.x < 48) p.x = 48;
-    if (p.x + p.w > WORLD_W - 48) p.x = WORLD_W - 48 - p.w;
+    if (p.grounded && p.anim === "run" && this.stepTick % 12 === 0) this.audio.play("step");
+    if (p.x < 36) p.x = 36;
+    if (p.x + p.w > WORLD_W - 36) p.x = WORLD_W - 36 - p.w;
   }
 
   private hurt(n: number, dir: number) {
@@ -724,8 +728,8 @@ export class PaleHallGame {
         vy: -6 - Math.random() * 10,
         life: 3,
         max: 3,
-        size: 1.2,
-        color: "rgba(200,220,220,0.35)",
+        size: 1.6,
+        color: "rgba(190,220,214,0.4)",
         g: 0,
         kind: "mote",
       });
@@ -734,13 +738,13 @@ export class PaleHallGame {
 
   private camera(dt: number) {
     const p = this.player;
-    this.look += (p.facing * 90 - this.look) * (1 - Math.exp(-3.2 * dt));
-    const tx = p.x + p.w / 2 - VIEW_W * 0.42 + this.look;
-    const ty = p.y + p.h / 2 - VIEW_H * 0.58;
-    this.camX += (tx - this.camX) * (1 - Math.exp(-5.5 * dt));
-    this.camY += (ty - this.camY) * (1 - Math.exp(-4.2 * dt));
-    this.camX = clamp(this.camX, 0, WORLD_W - VIEW_W);
-    this.camY = clamp(this.camY, 0, WORLD_H - VIEW_H);
+    this.look += (p.facing * 46 - this.look) * (1 - Math.exp(-4 * dt));
+    const tx = p.x + p.w / 2 - VIEW_W * 0.36 + this.look;
+    const ty = p.y + p.h / 2 - VIEW_H * 0.62;
+    this.camX += (tx - this.camX) * (1 - Math.exp(-7.2 * dt));
+    this.camY += (ty - this.camY) * (1 - Math.exp(-6.4 * dt));
+    this.camX = clamp(this.camX, 0, Math.max(0, WORLD_W - VIEW_W));
+    this.camY = clamp(this.camY, 0, Math.max(0, WORLD_H - VIEW_H));
   }
 
   private draw() {
@@ -802,6 +806,12 @@ export class PaleHallGame {
 
     ctx.fillStyle = "rgba(6,8,14,0.18)";
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    const vg = ctx.createRadialGradient(VIEW_W * 0.5, VIEW_H * 0.46, VIEW_H * 0.12, VIEW_W * 0.5, VIEW_H * 0.5, VIEW_W * 0.72);
+    vg.addColorStop(0, "rgba(0,0,0,0)");
+    vg.addColorStop(0.7, "rgba(4,6,12,0.18)");
+    vg.addColorStop(1, "rgba(3,4,8,0.58)");
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     if (this.mode === "title" || this.mode === "loading") this.drawTitleChrome();
   }
 
@@ -809,17 +819,17 @@ export class PaleHallGame {
     const ctx = this.ctx;
     const t = performance.now() / 1000;
     ctx.fillStyle = "rgba(6,8,14,0.55)";
-    ctx.fillRect(0, VIEW_H - 168, VIEW_W, 168);
+    ctx.fillRect(0, VIEW_H - 110, VIEW_W, 110);
     ctx.fillStyle = "#8a8d96";
-    ctx.font = "14px ui-monospace, Menlo, monospace";
-    ctx.fillText("CLOSED BETA 0.9", 48, VIEW_H - 112);
+    ctx.font = "11px ui-monospace, Menlo, monospace";
+    ctx.fillText("CLOSED BETA 0.9", 28, VIEW_H - 78);
     ctx.fillStyle = "#e8e4d8";
-    ctx.font = "italic 64px Georgia, 'Times New Roman', serif";
-    ctx.fillText("Pale Hall", 42, VIEW_H - 52);
+    ctx.font = "italic 42px Georgia, 'Times New Roman', serif";
+    ctx.fillText("Pale Hall", 24, VIEW_H - 38);
     ctx.globalAlpha = this.mode === "loading" ? 0.55 : 0.7 + Math.sin(t * 3.2) * 0.3;
     ctx.fillStyle = "#c8ccd4";
-    ctx.font = "600 22px system-ui, sans-serif";
-    ctx.fillText(this.mode === "loading" ? "Сборка зала…" : "Нажмите по залу, чтобы начать", 48, VIEW_H - 18);
+    ctx.font = "600 16px system-ui, sans-serif";
+    ctx.fillText(this.mode === "loading" ? "Сборка зала…" : "Нажмите по залу, чтобы начать", 28, VIEW_H - 14);
     ctx.globalAlpha = 1;
   }
 
@@ -856,9 +866,14 @@ export class PaleHallGame {
       ctx.restore();
     };
     for (const s of this.solids) {
-      if (s.kind === "ground" || s.kind === "plat") tile(art.floor, s, 96);
-      else if (s.kind === "wall" || s.kind === "ceiling") tile(art.wall, s, 110);
+      if (s.kind === "ground" || s.kind === "plat") tile(art.floor, s, 72);
+      else if (s.kind === "wall" || s.kind === "ceiling") tile(art.wall, s, 88);
     }
+    const pit = ctx.createLinearGradient(0, GROUND - 40, 0, WORLD_H);
+    pit.addColorStop(0, "rgba(8,12,18,0)");
+    pit.addColorStop(1, "rgba(4,6,10,0.72)");
+    ctx.fillStyle = pit;
+    ctx.fillRect(710, GROUND - 20, 350, WORLD_H - GROUND + 20);
     const imgOf = (n: (typeof this.props)[number]["img"]) =>
       ({
         lantern: art.lantern,
@@ -871,6 +886,16 @@ export class PaleHallGame {
         platform: art.platform,
       })[n];
     for (const pr of this.props) {
+      if (pr.img === "lantern") {
+        const gx = pr.x + pr.w / 2;
+        const gy = pr.y + pr.h * 0.7;
+        const glow = ctx.createRadialGradient(gx, gy, 4, gx, gy, 90);
+        glow.addColorStop(0, "rgba(170, 210, 200, 0.28)");
+        glow.addColorStop(0.45, "rgba(90, 140, 130, 0.1)");
+        glow.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(gx - 90, gy - 90, 180, 180);
+      }
       const img = imgOf(pr.img);
       if (pr.img === "door" && this.doorOpen) {
         ctx.save();
@@ -884,6 +909,11 @@ export class PaleHallGame {
         ctx.drawImage(img, pr.x, pr.y, pr.w, pr.h);
       }
     }
+    ctx.globalAlpha = 0.75;
+    for (const x of [160, 380, 560, 880, 1180, 1360, 1720, 1880]) {
+      ctx.drawImage(art.moss, x, 22, 22 + (x % 18), 70 + (x % 40));
+    }
+    ctx.globalAlpha = 1;
   }
 
   private drawEntities(art: Art | null) {
@@ -914,9 +944,9 @@ export class PaleHallGame {
         sh = pack.walk ?? pack.idle;
         fps = 8;
       }
-      const fr = Math.floor(e.animT * fps);
-      const dw = e.kind === "sentinel" ? 72 : e.kind === "gloommite" ? 78 : 64;
-      const dh = e.kind === "sentinel" ? 88 : e.kind === "gloommite" ? 52 : 56;
+      const fr = animFrame(e.animT, sh.cols * sh.rows, fps, e.state !== "attack");
+      const dw = e.kind === "sentinel" ? 84 : e.kind === "gloommite" ? 86 : 70;
+      const dh = e.kind === "sentinel" ? 100 : e.kind === "gloommite" ? 56 : 62;
       drawSheet(ctx, sh, fr, e.x + e.w / 2 - dw / 2, e.y + e.h - dh + 4, dw, dh, e.facing < 0);
       ctx.globalAlpha = 1;
     }
@@ -930,17 +960,18 @@ export class PaleHallGame {
       return;
     }
     const sh = art.warden[p.anim] ?? art.warden.idle;
-    let fr = Math.floor(p.animT * (p.anim === "run" ? 12 : p.anim === "attack" ? 13 : p.anim === "dash" ? 16 : 8));
+    const n = sh.cols * sh.rows;
+    let fr = animFrame(p.animT, n, p.anim === "run" ? 11 : p.anim === "dash" ? 14 : 7, p.anim !== "jump" && p.anim !== "attack");
     if (p.anim === "jump") {
-      if (p.vy < -80) fr = 1;
-      else if (Math.abs(p.vy) <= 80) fr = 2;
-      else fr = 3;
+      if (p.vy < -90) fr = 1;
+      else if (Math.abs(p.vy) <= 90) fr = Math.min(2, n - 1);
+      else fr = Math.min(3, n - 1);
     }
-    if (p.anim === "attack") fr = Math.min(3, Math.floor(((PLAYER.attackTime - p.atkT) / PLAYER.attackTime) * 4));
-    const dw = 64 * (p.anim === "dash" ? 1.08 : 1);
-    const dh = 64 * p.squish;
+    if (p.anim === "attack") fr = Math.min(n - 1, Math.floor(((PLAYER.attackTime - p.atkT) / PLAYER.attackTime) * n));
+    const dw = 78 * (p.anim === "dash" ? 1.1 : 1);
+    const dh = 78 * p.squish;
     const dx = p.x + p.w / 2 - dw / 2;
-    const dy = p.y + p.h - dh + 3;
+    const dy = p.y + p.h - dh + 4;
     drawSheet(ctx, sh, fr, dx, dy, dw, dh, p.facing < 0);
     ctx.globalAlpha = 1;
   }

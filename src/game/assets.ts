@@ -178,3 +178,11 @@ export function drawSheet(
   ctx.restore();
 }
 
+export function animFrame(t: number, n: number, fps: number, ping = true) {
+  if (n <= 1) return 0;
+  if (!ping) return Math.floor(t * fps) % n;
+  const cycle = Math.max(2, n * 2 - 2);
+  const i = Math.floor(t * fps) % cycle;
+  return i < n ? i : cycle - i;
+}
+
