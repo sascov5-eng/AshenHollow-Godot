@@ -3,8 +3,19 @@ import SwiftUI
 import UIKit
 import WebKit
 
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        supportedInterfaceOrientationsFor window: UIWindow?
+    ) -> UIInterfaceOrientationMask {
+        .landscape
+    }
+}
+
 @main
 struct AshenHollowApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     init() {
         UIApplication.shared.isIdleTimerDisabled = true
         let session = AVAudioSession.sharedInstance()

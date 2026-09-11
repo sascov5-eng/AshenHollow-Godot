@@ -41,7 +41,7 @@ export function PaleHallApp() {
   const overlay = ui.mode !== "playing";
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-bg text-fg">
+    <div className="landscape-shell text-fg">
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" />
       {ui.mode === "playing" || ui.mode === "paused" ? <Hud ui={ui} /> : null}
       <TouchControls game={g} visible={ui.showTouch && ui.mode === "playing"} />
@@ -131,7 +131,7 @@ function Menu({
   }, [ui.mode]);
 
   const card =
-    "w-[min(420px,calc(100%-32px))] rounded-xl border border-border bg-surface/92 p-6 shadow-2xl backdrop-blur-md";
+    "w-[min(480px,calc(100%-48px))] max-h-[min(92dvh,640px)] overflow-y-auto rounded-xl border border-border bg-surface/92 p-5 shadow-2xl backdrop-blur-md sm:p-6";
   const primary =
     "w-full rounded-md bg-accent px-4 py-3 text-sm font-medium text-accent-fg transition-transform duration-150 hover:opacity-90 active:scale-[0.98]";
   const ghost =
@@ -152,7 +152,7 @@ function Menu({
       {ui.mode === "title" && panel === "root" ? (
         <div className={card}>
           <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted">closed beta 0.9</p>
-          <h1 className="mt-2 font-display text-5xl leading-none tracking-tight">Pale Hall</h1>
+          <h1 className="mt-2 font-display text-4xl leading-none tracking-tight sm:text-5xl">Pale Hall</h1>
           <p className="mt-3 text-sm leading-relaxed text-muted">
             Тестовая комната. Один зал, три стража, платформы, рывок и скольжение по стенам.
           </p>
@@ -248,7 +248,7 @@ function SettingsPanel({
 }) {
   const row = "flex items-center justify-between gap-4 text-sm";
   return (
-    <div className="w-[min(420px,calc(100%-32px))] rounded-xl border border-border bg-surface/92 p-6 backdrop-blur-md">
+    <div className="w-[min(480px,calc(100%-48px))] max-h-[min(92dvh,640px)] overflow-y-auto rounded-xl border border-border bg-surface/92 p-5 backdrop-blur-md">
       <h2 className="font-display text-3xl">Настройки</h2>
       <div className="mt-5 space-y-4">
         <label className={row}>

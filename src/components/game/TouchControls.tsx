@@ -52,13 +52,13 @@ export function TouchControls({ game, visible }: Props) {
   if (!visible) return null;
 
   const btn =
-    "pointer-events-auto flex size-14 items-center justify-center rounded-full border border-border bg-surface/80 text-[11px] font-medium uppercase tracking-wide text-fg backdrop-blur-sm active:scale-95 sm:size-16";
+    "pointer-events-auto flex size-[3.6rem] items-center justify-center rounded-full border border-border bg-surface/80 text-[11px] font-medium uppercase tracking-wide text-fg backdrop-blur-sm active:scale-95";
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20 select-none">
       <div
         ref={stick}
-        className="pointer-events-auto absolute bottom-[max(18px,env(safe-area-inset-bottom))] left-[max(12px,env(safe-area-inset-left))] size-32 rounded-full border border-border bg-surface/50 backdrop-blur-sm sm:size-36"
+        className="pointer-events-auto absolute bottom-[max(16px,env(safe-area-inset-bottom))] left-[max(20px,env(safe-area-inset-left))] size-36 rounded-full border border-border bg-surface/50 backdrop-blur-sm"
         onPointerDown={(e) => {
           pid.current = e.pointerId;
           e.currentTarget.setPointerCapture(e.pointerId);
@@ -70,7 +70,7 @@ export function TouchControls({ game, visible }: Props) {
       >
         <span className="absolute inset-0 m-auto size-10 rounded-full bg-accent/20" />
       </div>
-      <div className="absolute right-[max(12px,env(safe-area-inset-right))] bottom-[max(18px,env(safe-area-inset-bottom))] grid grid-cols-2 gap-2">
+      <div className="absolute right-[max(20px,env(safe-area-inset-right))] bottom-[max(16px,env(safe-area-inset-bottom))] grid grid-cols-2 gap-3">
         <button
           type="button"
           className={btn}

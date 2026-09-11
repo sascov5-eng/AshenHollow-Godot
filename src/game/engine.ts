@@ -153,9 +153,10 @@ export class PaleHallGame {
 
   private resize = () => {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const r = this.canvas.getBoundingClientRect();
-    this.canvas.width = Math.max(1, Math.floor(r.width * dpr));
-    this.canvas.height = Math.max(1, Math.floor(r.height * dpr));
+    const w = this.canvas.clientWidth || this.canvas.getBoundingClientRect().width;
+    const h = this.canvas.clientHeight || this.canvas.getBoundingClientRect().height;
+    this.canvas.width = Math.max(1, Math.floor(w * dpr));
+    this.canvas.height = Math.max(1, Math.floor(h * dpr));
   };
 
   private wireProbe() {
