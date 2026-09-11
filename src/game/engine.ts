@@ -5,7 +5,7 @@ import { Input } from "./input";
 import { hitSpike, moveResolve } from "./physics";
 import { loadSettings, saveSettings } from "./save";
 import type { Actions, Enemy, FxBurst, Mode, Particle, Player, Settings, Solid, UiSnap } from "./types";
-import { aabb, BENCH, DOOR, makeEnemies, makeProps, makeSolids, SPAWN } from "./world";
+import { aabb, BENCH, DOOR, makeEnemies, makeProps, makeSolids, PIT_L, PIT_R, SPAWN } from "./world";
 
 declare global {
   interface Window {
@@ -88,6 +88,7 @@ export class PaleHallGame {
   look = 0;
   trauma = 0;
   hitstop = 0;
+  ghosts: Array<{ x: number; y: number; facing: number; anim: Player["anim"]; t: number; life: number }> = [];
   time = 0;
   killed = 0;
   doorOpen = false;
@@ -207,6 +208,7 @@ export class PaleHallGame {
     this.enemies = makeEnemies();
     this.particles = [];
     this.fx = [];
+    this.ghosts = [];
     this.killed = 0;
     this.doorOpen = false;
     this.time = 0;
@@ -439,7 +441,7 @@ export class PaleHallGame {
         this.audio.play("jump");
       }
     }
-    if (!a.jump && p.vy < 0) p.vy *= Math.pow(PLAYER.jumpCut, dt * 8);
+    if (!a.jump && p.vy < -90) p.vy *= Math.pow(PLAYER.jumpCut, dt * 5);
 
     let g = p.vy < 0 ? PLAYER.gravUp : PLAYER.gravDown;
     if (Math.abs(p.vy) < PLAYER.apex && p.vy < 0) g = PLAYER.gravApex;
@@ -460,7 +462,7 @@ export class PaleHallGame {
     }
 
     if (hitSpike(p, this.solids) && p.hurtT <= 0 && p.dashT <= 0) {
-      this.hurt(1, p.x < 1740 ? -1 : 1);
+      this.hurt(1, p.facing);
       p.vy = PLAYER.jumpVel * 0.72;
     }
 
@@ -482,6 +484,13 @@ export class PaleHallGame {
 
     this.pickAnim(p, a, wallHold);
     this.footEnv(p);
+    if (p.dashT > 0 && this.stepTick % 2 === 0) {
+      this.ghosts.push({ x: p.x, y: p.y, facing: p.facing, anim: p.anim, t: p.animT, life: 0.16 });
+    }
+    this.ghosts = this.ghosts.filter((g) => {
+      g.life -= dt;
+      return g.life > 0;
+    });
   }
 
   private pickAnim(p: Player, a: Actions, wallHold: boolean) {
@@ -738,11 +747,11 @@ export class PaleHallGame {
 
   private camera(dt: number) {
     const p = this.player;
-    this.look += (p.facing * 46 - this.look) * (1 - Math.exp(-4 * dt));
-    const tx = p.x + p.w / 2 - VIEW_W * 0.36 + this.look;
-    const ty = p.y + p.h / 2 - VIEW_H * 0.62;
-    this.camX += (tx - this.camX) * (1 - Math.exp(-7.2 * dt));
-    this.camY += (ty - this.camY) * (1 - Math.exp(-6.4 * dt));
+    this.look += (p.facing * 28 - this.look) * (1 - Math.exp(-5 * dt));
+    const tx = p.x + p.w / 2 - VIEW_W * 0.4 + this.look;
+    const ty = p.y + p.h / 2 - VIEW_H * 0.58;
+    this.camX += (tx - this.camX) * (1 - Math.exp(-9 * dt));
+    this.camY += (ty - this.camY) * (1 - Math.exp(-8 * dt));
     this.camX = clamp(this.camX, 0, Math.max(0, WORLD_W - VIEW_W));
     this.camY = clamp(this.camY, 0, Math.max(0, WORLD_H - VIEW_H));
   }
@@ -757,6 +766,8 @@ export class PaleHallGame {
     const oy = (height - VIEW_H * scale) / 2;
     ctx.fillStyle = "#07080d";
     ctx.fillRect(0, 0, width, height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.translate(ox, oy);
     ctx.scale(scale, scale);
     ctx.beginPath();
@@ -873,7 +884,7 @@ export class PaleHallGame {
     pit.addColorStop(0, "rgba(8,12,18,0)");
     pit.addColorStop(1, "rgba(4,6,10,0.72)");
     ctx.fillStyle = pit;
-    ctx.fillRect(710, GROUND - 20, 350, WORLD_H - GROUND + 20);
+    ctx.fillRect(PIT_L, GROUND - 16, PIT_R - PIT_L, WORLD_H - GROUND + 16);
     const imgOf = (n: (typeof this.props)[number]["img"]) =>
       ({
         lantern: art.lantern,
@@ -910,7 +921,7 @@ export class PaleHallGame {
       }
     }
     ctx.globalAlpha = 0.75;
-    for (const x of [160, 380, 560, 880, 1180, 1360, 1720, 1880]) {
+    for (const x of [90, 250, 410, 620, 880, 1040, 1220, 1380]) {
       ctx.drawImage(art.moss, x, 22, 22 + (x % 18), 70 + (x % 40));
     }
     ctx.globalAlpha = 1;
@@ -933,20 +944,20 @@ export class PaleHallGame {
       const pack =
         e.kind === "gloommite" ? art.gloommite : e.kind === "veilfly" ? art.veilfly : art.sentinel;
       let sh = pack.idle || pack.hover || pack.walk;
-      let fps = 8;
+      let fps = 10;
       if (e.kind === "veilfly") {
         sh = e.state === "attack" ? art.veilfly.attack : art.veilfly.hover;
-        fps = e.state === "attack" ? 12 : 10;
+        fps = e.state === "attack" ? 14 : 12;
       } else if (e.state === "attack") {
         sh = pack.attack;
-        fps = 11;
+        fps = 13;
       } else if (e.state === "walk") {
         sh = pack.walk ?? pack.idle;
-        fps = 8;
+        fps = 10;
       }
       const fr = animFrame(e.animT, sh.cols * sh.rows, fps, e.state !== "attack");
-      const dw = e.kind === "sentinel" ? 84 : e.kind === "gloommite" ? 86 : 70;
-      const dh = e.kind === "sentinel" ? 100 : e.kind === "gloommite" ? 56 : 62;
+      const dw = e.kind === "sentinel" ? 64 : e.kind === "gloommite" ? 62 : 52;
+      const dh = e.kind === "sentinel" ? 78 : e.kind === "gloommite" ? 42 : 48;
       drawSheet(ctx, sh, fr, e.x + e.w / 2 - dw / 2, e.y + e.h - dh + 4, dw, dh, e.facing < 0);
       ctx.globalAlpha = 1;
     }
@@ -961,17 +972,30 @@ export class PaleHallGame {
     }
     const sh = art.warden[p.anim] ?? art.warden.idle;
     const n = sh.cols * sh.rows;
-    let fr = animFrame(p.animT, n, p.anim === "run" ? 11 : p.anim === "dash" ? 14 : 7, p.anim !== "jump" && p.anim !== "attack");
+    let fr = animFrame(p.animT, n, p.anim === "run" ? 14 : p.anim === "dash" ? 16 : p.anim === "idle" ? 6 : 9, p.anim !== "jump" && p.anim !== "attack");
     if (p.anim === "jump") {
       if (p.vy < -90) fr = 1;
       else if (Math.abs(p.vy) <= 90) fr = Math.min(2, n - 1);
       else fr = Math.min(3, n - 1);
     }
     if (p.anim === "attack") fr = Math.min(n - 1, Math.floor(((PLAYER.attackTime - p.atkT) / PLAYER.attackTime) * n));
-    const dw = 78 * (p.anim === "dash" ? 1.1 : 1);
-    const dh = 78 * p.squish;
+    const dw = 58 * (p.anim === "dash" ? 1.12 : 1);
+    const dh = 58 * p.squish;
     const dx = p.x + p.w / 2 - dw / 2;
-    const dy = p.y + p.h - dh + 4;
+    const dy = p.y + p.h - dh + 3;
+
+    ctx.fillStyle = "rgba(0,0,0,0.32)";
+    ctx.beginPath();
+    ctx.ellipse(p.x + p.w / 2, p.y + p.h - 1, 11, 3.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    for (const g of this.ghosts) {
+      const gs = art.warden[g.anim] ?? art.warden.idle;
+      const gn = gs.cols * gs.rows;
+      const gf = animFrame(g.t, gn, 14, false);
+      drawSheet(ctx, gs, gf, dx + (g.x - p.x), dy + (g.y - p.y), dw, dh, g.facing < 0, (g.life / 0.16) * 0.35);
+    }
+
     drawSheet(ctx, sh, fr, dx, dy, dw, dh, p.facing < 0);
     ctx.globalAlpha = 1;
   }
