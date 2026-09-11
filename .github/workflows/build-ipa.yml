@@ -1,0 +1,78 @@
+name: Build Pale Hall IPA
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Build iOS web bundle
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build:ios
+          test -f Resources/www/index.html
+          test -d Resources/www/sprites
+          test -d Resources/www/map
+
+      - name: Prepare app bundle
+        run: |
+          rm -rf build
+          mkdir -p build/Payload/AshenHollow.app
+
+      - name: Compile Pale Hall
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          APP="build/Payload/AshenHollow.app"
+          xcrun swiftc -parse-as-library \
+            -target arm64-apple-ios15.0 \
+            -sdk "$SDK" \
+            -O \
+            -framework Foundation \
+            -framework SwiftUI \
+            -framework UIKit \
+            -framework WebKit \
+            -framework AVFoundation \
+            Sources/*.swift \
+            -o "$APP/AshenHollow"
+          chmod +x "$APP/AshenHollow"
+          cp Info.plist "$APP/Info.plist"
+          cp Resources/Icon.png "$APP/Icon.png"
+          cp -R Resources/www "$APP/www"
+          printf 'APPL????' > "$APP/PkgInfo"
+          test -f "$APP/AshenHollow"
+          test -f "$APP/www/index.html"
+          test -d "$APP/www/sprites"
+          ls -lh "$APP" "$APP/www" | head
+
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          cd build
+          zip -qry PaleHall-unsigned.ipa Payload
+          test -f PaleHall-unsigned.ipa
+          SIZE="$(stat -f%z PaleHall-unsigned.ipa)"
+          echo "ipa_bytes=$SIZE"
+          test "$SIZE" -ge 1000000
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PaleHall-unsigned-ipa
+          path: build/PaleHall-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30

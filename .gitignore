@@ -1,0 +1,33 @@
+# dependencies & build
+node_modules/
+dist/
+.output/
+.vinxi/
+.nitro/
+.tanstack/
+.vercel/
+*.log
+.node_modules.lock
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# grok sandbox (not part of the game)
+.grok/
+AGENTS.md
+AGENTS.project.md
+startup.sh
+artifacts/
+attachments/
+
+# source art pipeline — runtime sprites live in /public
+assets/
+
+# local qa captures
+screenshots/
+
+Resources/www/
+build/
+
