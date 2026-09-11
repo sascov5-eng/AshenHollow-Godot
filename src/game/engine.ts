@@ -783,10 +783,10 @@ export class PaleHallGame {
     const art = this.art;
     if (art) {
       ctx.drawImage(art.sky, 0, 0, VIEW_W, VIEW_H);
-      this.drawParallax(art.far, camX * 0.18, camY * 0.08, 0.92);
-      this.drawParallax(art.mid, camX * 0.38, camY * 0.16, 0.88);
+      this.drawParallax(art.far, camX * 0.1, camY * 0.04, 0.52, 1, 1.4);
+      this.drawParallax(art.mid, camX * 0.28, camY * 0.1, 0.8, 0.95, 0);
     } else {
-      ctx.fillStyle = "#0b1020";
+      ctx.fillStyle = "#07080d";
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
 
@@ -795,9 +795,11 @@ export class PaleHallGame {
     this.drawWorld(art);
     this.drawEntities(art);
     for (const q of this.particles) {
-      ctx.globalAlpha = clamp(q.life / q.max, 0, 1);
+      ctx.globalAlpha = clamp(q.life / q.max, 0, 1) * 0.85;
       ctx.fillStyle = q.color;
-      ctx.fillRect(q.x, q.y, q.size, q.size);
+      ctx.beginPath();
+      ctx.arc(q.x, q.y, q.size * 0.55, 0, Math.PI * 2);
+      ctx.fill();
     }
     ctx.globalAlpha = 1;
     if (art) {
@@ -809,18 +811,14 @@ export class PaleHallGame {
     }
     ctx.restore();
 
-    if (art && this.settings.quality === "high") {
-      ctx.globalAlpha = 0.28;
-      this.drawParallax(art.near, camX * 0.72, camY * 0.22, 1);
-      ctx.globalAlpha = 1;
+    if (art) {
+      this.drawParallax(art.near, camX * 1.22, camY * 0.38, 1, 0.94, 0);
     }
 
-    ctx.fillStyle = "rgba(6,8,14,0.18)";
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-    const vg = ctx.createRadialGradient(VIEW_W * 0.5, VIEW_H * 0.46, VIEW_H * 0.12, VIEW_W * 0.5, VIEW_H * 0.5, VIEW_W * 0.72);
+    const vg = ctx.createRadialGradient(VIEW_W * 0.5, VIEW_H * 0.48, VIEW_H * 0.1, VIEW_W * 0.5, VIEW_H * 0.52, VIEW_W * 0.8);
     vg.addColorStop(0, "rgba(0,0,0,0)");
-    vg.addColorStop(0.7, "rgba(4,6,12,0.18)");
-    vg.addColorStop(1, "rgba(3,4,8,0.58)");
+    vg.addColorStop(0.55, "rgba(0,0,0,0.1)");
+    vg.addColorStop(1, "rgba(0,0,0,0.78)");
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     if (this.mode === "title" || this.mode === "loading") this.drawTitleChrome();
@@ -844,15 +842,18 @@ export class PaleHallGame {
     ctx.globalAlpha = 1;
   }
 
-  private drawParallax(img: HTMLImageElement, x: number, y: number, dark: number) {
+  private drawParallax(img: HTMLImageElement, x: number, y: number, dark = 1, alpha = 1, blur = 0) {
     const ctx = this.ctx;
     ctx.save();
-    ctx.filter = dark < 1 ? `brightness(${dark})` : "none";
-    const w = VIEW_W * 1.15;
-    const h = VIEW_H * 1.1;
+    ctx.globalAlpha *= alpha;
+    const bits = [dark < 1 ? `brightness(${dark})` : "", blur > 0 ? `blur(${blur}px)` : ""].filter(Boolean);
+    ctx.filter = bits.length ? bits.join(" ") : "none";
+    const w = VIEW_W * 1.22;
+    const h = VIEW_H * 1.16;
     const dx = -((x % w) + w) % w;
-    ctx.drawImage(img, dx, -20 - y * 0.2, w, h);
-    ctx.drawImage(img, dx + w - 2, -20 - y * 0.2, w, h);
+    const dy = -24 - y * 0.22;
+    ctx.drawImage(img, dx, dy, w, h);
+    ctx.drawImage(img, dx + w - 1, dy, w, h);
     ctx.filter = "none";
     ctx.restore();
   }
@@ -877,8 +878,20 @@ export class PaleHallGame {
       ctx.restore();
     };
     for (const s of this.solids) {
-      if (s.kind === "ground" || s.kind === "plat") tile(art.floor, s, 72);
-      else if (s.kind === "wall" || s.kind === "ceiling") tile(art.wall, s, 88);
+      if (s.kind === "ground") {
+        ctx.fillStyle = "#05070c";
+        ctx.fillRect(s.x, s.y + 20, s.w, Math.max(0, s.h - 20));
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(s.x, s.y - 8, s.w, 40);
+        ctx.clip();
+        for (let x = s.x - 8; x < s.x + s.w; x += 90) ctx.drawImage(art.floor, x, s.y - 12, 92, 46);
+        ctx.restore();
+      } else if (s.kind === "wall" || s.kind === "ceiling") {
+        tile(art.wall, s, 96);
+        ctx.fillStyle = "rgba(0,0,0,0.38)";
+        ctx.fillRect(s.x, s.y, s.w, s.h);
+      }
     }
     const pit = ctx.createLinearGradient(0, GROUND - 40, 0, WORLD_H);
     pit.addColorStop(0, "rgba(8,12,18,0)");
@@ -972,7 +985,7 @@ export class PaleHallGame {
     }
     const sh = art.warden[p.anim] ?? art.warden.idle;
     const n = sh.cols * sh.rows;
-    let fr = animFrame(p.animT, n, p.anim === "run" ? 14 : p.anim === "dash" ? 16 : p.anim === "idle" ? 6 : 9, p.anim !== "jump" && p.anim !== "attack");
+    let fr = animFrame(p.animT, n, p.anim === "run" ? 10 : p.anim === "dash" ? 12 : p.anim === "idle" ? 5 : 8, p.anim !== "jump" && p.anim !== "attack");
     if (p.anim === "jump") {
       if (p.vy < -90) fr = 1;
       else if (Math.abs(p.vy) <= 90) fr = Math.min(2, n - 1);

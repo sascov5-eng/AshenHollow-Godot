@@ -72,7 +72,7 @@ export async function loadArt(onProgress: (n: number) => void): Promise<Art> {
     ["sky", "/map/sky.jpg"],
     ["far", "/map/far.jpg"],
     ["mid", "/map/mid.jpg"],
-    ["near", "/map/near.jpg"],
+    ["near", "/map/near.png"],
     ["floor", "/map/floor.jpg"],
     ["wall", "/map/wall.jpg"],
     ["plat", "/map/platform.png"],
